@@ -6,12 +6,21 @@ import { encoding_for_model } from 'tiktoken';
 // Get accurate token count using tiktoken
 async function getTokenCount(text: string): Promise<number> {
   try {
-    const enc = encoding_for_model('gpt-4');
-    const tokens = enc.encode(text);
-    enc.free();
-    return tokens.length;
+    // Fallback to approximate count if tiktoken fails
+    const approximateCount = Math.ceil(text.length / 4);
+
+    try {
+      const enc = encoding_for_model('gpt-4');
+      const tokens = enc.encode(text);
+      enc.free();
+      return tokens.length;
+    } catch (error) {
+      console.warn('Tiktoken failed, using approximate count:', error);
+      return approximateCount;
+    }
   } catch (error) {
     console.error('Error counting tokens:', error);
+    // Return approximate count as fallback
     return Math.ceil(text.length / 4);
   }
 }
