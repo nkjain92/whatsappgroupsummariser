@@ -62,7 +62,18 @@ export async function OPTIONS(request: NextRequest) {
   });
 }
 
+export async function GET() {
+  return new NextResponse('Method GET not allowed', { status: 405 });
+}
+
 export async function POST(request: NextRequest) {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Content-Type': 'application/json',
+  };
+
   const timings: Record<string, number> = {};
   const startTime = performance.now();
 
@@ -71,7 +82,7 @@ export async function POST(request: NextRequest) {
     if (!request.body) {
       return new NextResponse(JSON.stringify({ error: 'No request body' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers,
       });
     }
 
@@ -79,7 +90,7 @@ export async function POST(request: NextRequest) {
     if (!formData) {
       return new NextResponse(JSON.stringify({ error: 'Failed to parse form data' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers,
       });
     }
 
@@ -88,7 +99,7 @@ export async function POST(request: NextRequest) {
       console.error('No file uploaded');
       return new NextResponse(JSON.stringify({ error: 'No file uploaded' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers,
       });
     }
 
@@ -110,7 +121,10 @@ export async function POST(request: NextRequest) {
 
       if (!fileContent || fileContent.trim().length === 0) {
         console.error('Empty file content');
-        throw new Error('Chat file is empty');
+        return new NextResponse(JSON.stringify({ error: 'Chat file is empty' }), {
+          status: 400,
+          headers,
+        });
       }
 
       console.log('File content length:', fileContent.length);
@@ -121,10 +135,7 @@ export async function POST(request: NextRequest) {
           error: error instanceof Error ? error.message : 'Failed to read chat data from file',
           details: error instanceof Error ? error.stack : undefined,
         }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        },
+        { status: 400, headers },
       );
     }
 
@@ -139,10 +150,7 @@ export async function POST(request: NextRequest) {
       console.error('No valid chat messages found');
       return new NextResponse(
         JSON.stringify({ error: 'No valid chat messages found in the file' }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        },
+        { status: 400, headers },
       );
     }
 
@@ -212,10 +220,7 @@ This format ensures the output is organized, actionable, and easy to understand.
         JSON.stringify({
           error: `Content is too long (${promptTokens} tokens). Please upload a smaller chat file. Maximum allowed is 128,000 tokens.`,
         }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        },
+        { status: 400, headers },
       );
     }
 
@@ -248,10 +253,7 @@ This format ensures the output is organized, actionable, and easy to understand.
         summary: completion.choices[0].message.content,
         timings,
       }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      },
+      { status: 200, headers },
     );
   } catch (error: unknown) {
     const totalTime = performance.now() - startTime;
@@ -266,10 +268,7 @@ This format ensures the output is organized, actionable, and easy to understand.
         details: error instanceof Error ? error.stack : undefined,
         timings,
       }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      },
+      { status: 500, headers },
     );
   }
 }

@@ -3,6 +3,9 @@ import { processWhatsAppChat } from '@/lib/chatProcessor';
 import JSZip from 'jszip';
 import { estimateTokenCount } from '@/lib/tokenCounter';
 
+// Export runtime configuration at the top
+export const runtime = 'edge';
+
 async function extractTextFromZip(file: File): Promise<string> {
   try {
     const zip = new JSZip();
@@ -38,40 +41,30 @@ async function extractTextFromZip(file: File): Promise<string> {
   }
 }
 
-export async function OPTIONS(request: NextRequest) {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
-  });
+// Add allowed methods
+export async function GET() {
+  return new NextResponse('Method GET not allowed', { status: 405 });
 }
 
 export async function POST(request: NextRequest) {
+  // Add CORS headers
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Content-Type': 'application/json',
+  };
+
   try {
-    // Validate request
-    if (!request.body) {
-      return NextResponse.json({ error: 'No request body' }, { status: 400 });
-    }
-
-    const formData = await request.formData().catch(() => null);
-    if (!formData) {
-      return NextResponse.json({ error: 'Failed to parse form data' }, { status: 400 });
-    }
-
+    const formData = await request.formData();
     const file = formData.get('file') as File;
-    if (!file) {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
-    }
 
-    // Log file details
-    console.log('Received file:', {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-    });
+    if (!file) {
+      return new NextResponse(JSON.stringify({ error: 'No file uploaded' }), {
+        status: 400,
+        headers,
+      });
+    }
 
     // Get the file content based on file type
     let fileContent: string;
@@ -86,28 +79,27 @@ export async function POST(request: NextRequest) {
 
       if (!fileContent || fileContent.trim().length === 0) {
         console.error('Empty file content');
-        return NextResponse.json({ error: 'The uploaded file is empty' }, { status: 400 });
+        return new NextResponse(JSON.stringify({ error: 'The uploaded file is empty' }), {
+          status: 400,
+          headers,
+        });
       }
-
-      console.log('File content length:', fileContent.length);
     } catch (error) {
       console.error('Error reading file:', error);
-      return NextResponse.json(
-        {
+      return new NextResponse(
+        JSON.stringify({
           error: error instanceof Error ? error.message : 'Failed to read chat data from file',
           details: error instanceof Error ? error.stack : undefined,
-        },
-        { status: 400 },
+        }),
+        { status: 400, headers },
       );
     }
 
-    try {
-      // Process the chat data
-      console.log('Processing chat data...');
-      const processedChat = await processWhatsAppChat(fileContent);
+    // Process the chat data
+    const processedChat = await processWhatsAppChat(fileContent);
 
-      // Create the prompt template to get accurate token count
-      const promptTemplate = `You are a chatbot trained to analyze and summarize WhatsApp group chats. A user has provided the following chat export from a WhatsApp group. Your task is to generate a summary of the conversations.
+    // Create the prompt template
+    const promptTemplate = `You are a chatbot trained to analyze and summarize WhatsApp group chats. A user has provided the following chat export from a WhatsApp group. Your task is to generate a summary of the conversations.
 
 For each day, include:
 1. The main topics discussed.
@@ -117,71 +109,46 @@ For each day, include:
 Chat data:
 ${processedChat}`;
 
-      // Get token counts
-      console.log('Counting tokens...');
-      const chatTokens = estimateTokenCount(processedChat);
-      const promptTokens = estimateTokenCount(promptTemplate);
+    // Get token counts
+    const chatTokens = estimateTokenCount(processedChat);
+    const promptTokens = estimateTokenCount(promptTemplate);
 
-      // Extract date range
-      const dateRangeMatch = processedChat.match(/===\s*(\d{2}\/\d{2}\/\d{2})/g);
-      const dates = dateRangeMatch ? dateRangeMatch.map(d => d.replace(/===\s*/, '')) : [];
-      const dateRange =
-        dates.length >= 2
-          ? `from ${dates[0]} to ${dates[dates.length - 1]}`
-          : 'for the last 7 days';
+    // Extract date range
+    const dateRangeMatch = processedChat.match(/===\s*(\d{2}\/\d{2}\/\d{2})/g);
+    const dates = dateRangeMatch ? dateRangeMatch.map(d => d.replace(/===\s*/, '')) : [];
+    const dateRange =
+      dates.length >= 2 ? `from ${dates[0]} to ${dates[dates.length - 1]}` : 'for the last 7 days';
 
-      return new NextResponse(
-        JSON.stringify({
-          tokens: {
-            chatTokens,
-            promptTokens,
-          },
-          dateRange,
-        }),
-        {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-    } catch (error) {
-      console.error('Error processing chat:', error);
-      return new NextResponse(
-        JSON.stringify({
-          error: error instanceof Error ? error.message : 'Error processing chat data',
-          details: error instanceof Error ? error.stack : undefined,
-        }),
-        {
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-    }
-  } catch (error: unknown) {
-    console.error('Error checking tokens:', error);
     return new NextResponse(
       JSON.stringify({
-        error: error instanceof Error ? error.message : 'Error checking file',
+        tokens: {
+          chatTokens,
+          promptTokens,
+        },
+        dateRange,
+      }),
+      { status: 200, headers },
+    );
+  } catch (error) {
+    console.error('Error:', error);
+    return new NextResponse(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : 'Unknown error',
         details: error instanceof Error ? error.stack : undefined,
       }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      },
+      { status: 500, headers },
     );
   }
 }
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
-export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
+// Add OPTIONS handler
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
+}
