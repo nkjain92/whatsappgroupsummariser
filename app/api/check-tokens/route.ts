@@ -47,7 +47,7 @@ async function extractTextFromZip(file: File): Promise<string> {
     return content;
   } catch (error) {
     console.error('Error extracting text from zip:', error);
-    throw error;
+    throw new Error('Failed to extract chat data from zip file');
   }
 }
 
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
-    // Get the file content based on file type
+    // Get the file content
     let fileContent: string;
     try {
       if (file.type === 'application/zip' || file.name.endsWith('.zip')) {
@@ -69,11 +69,7 @@ export async function POST(request: NextRequest) {
         fileContent = await file.text();
       }
     } catch (error) {
-      console.error('Error reading file:', error);
-      return NextResponse.json(
-        { error: error instanceof Error ? error.message : 'Failed to read chat data from file' },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: 'Failed to read chat data from file' }, { status: 400 });
     }
 
     // Process the chat data
@@ -107,11 +103,8 @@ ${processedChat}`;
       },
       dateRange,
     });
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('Error checking tokens:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error checking file' },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: error.message || 'Error checking file' }, { status: 500 });
   }
 }

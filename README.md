@@ -1,32 +1,23 @@
-# WhatsApp Group Chat Summarizer
+# WhatsApp Chat Summarizer
 
-An AI-powered tool that generates concise, organized summaries of WhatsApp group chats. Built with Next.js and OpenAI's GPT-4.
+A web application that uses GPT-4 to generate summaries of WhatsApp group chat exports. The app processes chat data and provides daily breakdowns of topics discussed, key highlights, and notable contributions from participants.
 
 ## Features
 
-- Upload WhatsApp chat exports (.txt or .zip)
-- AI-powered summarization by date and topic
-- Markdown formatting support
-- Copy to clipboard and PDF export
-- Privacy-focused (no data storage)
-- Real-time token counting
-- Detailed processing status
-
-## Tech Stack
-
-- Next.js 14
-- TypeScript
-- Tailwind CSS
-- OpenAI GPT-4
-- Vercel (hosting)
+- Drag-and-drop interface for uploading WhatsApp chat exports (.txt files)
+- Secure processing of chat data (not stored after session)
+- GPT-4 powered summarization
+- Daily breakdown of discussions
+- Export summaries as PDF or copy as text
+- Responsive design for all devices
 
 ## Setup
 
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/nkjain92/whatsappgroupsummariser.git
-cd whatsappgroupsummariser
+git clone <repository-url>
+cd whatsappsummariser
 ```
 
 2. Install dependencies:
@@ -38,7 +29,7 @@ npm install
 3. Create a `.env.local` file in the root directory and add your OpenAI API key:
 
 ```
-OPENAI_API_KEY=your_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
 ```
 
 4. Run the development server:
@@ -53,40 +44,32 @@ npm run dev
 
 1. Export your WhatsApp chat:
 
-   - Open the WhatsApp group
-   - Click Group Info > More > Export Chat
-   - Choose "Without Media"
+   - Open the WhatsApp group chat
+   - Click the three dots menu (⋮)
+   - Select "More" > "Export chat"
+   - Choose "Without media"
+   - Save the .txt file
 
-2. Upload the exported file:
+2. Upload the chat export:
 
-   - Drag and drop the .txt or .zip file
-   - Or click to select the file
+   - Drag and drop the .txt file onto the upload area
+   - Or click "Select File" to choose the file
 
-3. Click "Generate Summary"
+3. Click "Generate Summary" to process the chat
 
-   - The AI will process the chat
-   - You'll see real-time processing status
+4. View the summary:
+   - Summaries are organized by date
+   - Each day shows topics discussed and key messages
+   - Use the "Copy Text" or "Download PDF" buttons to save the summary
 
-4. View and export:
+## Tech Stack
 
-   - Read the organized summary
-   - Copy to clipboard or download as PDF
-
-## Deployment
-
-The app is optimized for Vercel deployment. Simply:
-
-1. Push to GitHub
-2. Import to Vercel
-3. Add your `OPENAI_API_KEY` in Vercel's environment variables
-4. Deploy!
+- Next.js 14
+- TypeScript
+- Tailwind CSS
+- OpenAI GPT-4
+- jsPDF for PDF generation
 
 ## Privacy
 
-- No chat data is stored on servers
-- All processing happens in your session
-- Direct API calls to OpenAI only
-
-## License
-
-MIT License - feel free to use and modify!
+This application processes chat data client-side and through secure API calls. No chat data is stored on servers after processing. All communication with the OpenAI API is done securely through server-side API routes.

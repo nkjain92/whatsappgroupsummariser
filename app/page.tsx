@@ -79,7 +79,6 @@ export default function Home() {
   const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
   const [processingStage, setProcessingStage] = useState<string>('');
-  const [timings, setTimings] = useState<Record<string, number>>({});
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -142,7 +141,6 @@ export default function Home() {
     setLoading(true);
     setError('');
     setProcessingStage('Preparing chat data...');
-    setTimings({});
 
     try {
       const formData = new FormData();
@@ -160,9 +158,6 @@ export default function Home() {
         throw new Error(data.error);
       }
 
-      if (data.timings) {
-        setTimings(data.timings);
-      }
       setSummary(data.summary);
     } catch (err) {
       console.error('Error details:', err);
@@ -225,7 +220,7 @@ export default function Home() {
           className='mb-2'
           dangerouslySetInnerHTML={{
             __html: parts
-              .map(part => {
+              .map((part, j) => {
                 if (part.match(urlRegex)) {
                   return `<a href="${part}" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-700 underline break-all">${part}</a>`;
                 }
@@ -361,28 +356,6 @@ export default function Home() {
                     <p className='text-xs text-gray-500 mt-2'>
                       This might take a minute or two for longer chats...
                     </p>
-                  )}
-                  {Object.keys(timings).length > 0 && (
-                    <div className='text-xs text-gray-500 mt-4 text-left'>
-                      <p className='font-medium mb-1'>Processing times:</p>
-                      <ul className='space-y-1'>
-                        {timings.fileRead && (
-                          <li>File reading: {(timings.fileRead / 1000).toFixed(2)}s</li>
-                        )}
-                        {timings.processing && (
-                          <li>Chat processing: {(timings.processing / 1000).toFixed(2)}s</li>
-                        )}
-                        {timings.promptPrep && (
-                          <li>Prompt preparation: {(timings.promptPrep / 1000).toFixed(2)}s</li>
-                        )}
-                        {timings.tokenCount && (
-                          <li>Token counting: {(timings.tokenCount / 1000).toFixed(2)}s</li>
-                        )}
-                        {timings.aiGeneration && (
-                          <li>AI generation: {(timings.aiGeneration / 1000).toFixed(2)}s</li>
-                        )}
-                      </ul>
-                    </div>
                   )}
                 </div>
                 <div className='flex justify-center items-center gap-2'>
