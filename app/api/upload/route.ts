@@ -197,7 +197,7 @@ This format ensures the output is organized, actionable, and easy to understand.
     console.log('Sending request to OpenAI...');
     const aiStart = performance.now();
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-2024-08-06',
+      model: 'gpt-4',
       messages: [
         {
           role: 'user',
