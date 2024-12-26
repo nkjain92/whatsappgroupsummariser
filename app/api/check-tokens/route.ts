@@ -47,7 +47,7 @@ async function extractTextFromZip(file: File): Promise<string> {
     return content;
   } catch (error) {
     console.error('Error extracting text from zip:', error);
-    throw new Error('Failed to extract chat data from zip file');
+    throw error;
   }
 }
 
@@ -68,12 +68,10 @@ export async function POST(request: NextRequest) {
       } else {
         fileContent = await file.text();
       }
-    } catch (fileError) {
+    } catch (error) {
+      console.error('Error reading file:', error);
       return NextResponse.json(
-        {
-          error:
-            fileError instanceof Error ? fileError.message : 'Failed to read chat data from file',
-        },
+        { error: error instanceof Error ? error.message : 'Failed to read chat data from file' },
         { status: 400 },
       );
     }
