@@ -69,7 +69,13 @@ export async function POST(request: NextRequest) {
         fileContent = await file.text();
       }
     } catch (fileError) {
-      return NextResponse.json({ error: 'Failed to read chat data from file' }, { status: 400 });
+      return NextResponse.json(
+        {
+          error:
+            fileError instanceof Error ? fileError.message : 'Failed to read chat data from file',
+        },
+        { status: 400 },
+      );
     }
 
     // Process the chat data
