@@ -2,11 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { processWhatsAppChat } from '@/lib/chatProcessor';
 import JSZip from 'jszip';
-import { estimateTokenCount } from '@/lib/tokenCounter';
+import { encoding_for_model } from 'tiktoken';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+// Get accurate token count using tiktoken
+async function getTokenCount(text: string): Promise<number> {
+  try {
+    // Using cl100k_base encoding for GPT-4 models
+    const enc = encoding_for_model('gpt-4');
+    const tokens = enc.encode(text);
+    enc.free();
+    return tokens.length;
+  } catch (error) {
+    console.error('Error counting tokens:', error);
+    return Math.ceil(text.length / 4);
+  }
+}
 
 async function extractTextFromZip(file: File): Promise<string> {
   try {
@@ -48,59 +62,17 @@ async function extractTextFromZip(file: File): Promise<string> {
   }
 }
 
-export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
-
-export async function OPTIONS(request: NextRequest) {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
-  });
-}
-
-export async function GET() {
-  return new NextResponse('Method GET not allowed', { status: 405 });
-}
-
 export async function POST(request: NextRequest) {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Content-Type': 'application/json',
-  };
-
   const timings: Record<string, number> = {};
   const startTime = performance.now();
 
   try {
-    // Validate request
-    if (!request.body) {
-      return new NextResponse(JSON.stringify({ error: 'No request body' }), {
-        status: 400,
-        headers,
-      });
-    }
-
-    const formData = await request.formData().catch(() => null);
-    if (!formData) {
-      return new NextResponse(JSON.stringify({ error: 'Failed to parse form data' }), {
-        status: 400,
-        headers,
-      });
-    }
-
+    const formData = await request.formData();
     const file = formData.get('file') as File;
+
     if (!file) {
       console.error('No file uploaded');
-      return new NextResponse(JSON.stringify({ error: 'No file uploaded' }), {
-        status: 400,
-        headers,
-      });
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
     console.log('File received:', file.name, 'Size:', file.size, 'Type:', file.type);
@@ -121,21 +93,18 @@ export async function POST(request: NextRequest) {
 
       if (!fileContent || fileContent.trim().length === 0) {
         console.error('Empty file content');
-        return new NextResponse(JSON.stringify({ error: 'Chat file is empty' }), {
-          status: 400,
-          headers,
-        });
+        throw new Error('Chat file is empty');
       }
 
       console.log('File content length:', fileContent.length);
     } catch (error) {
       console.error('Error reading file:', error);
-      return new NextResponse(
-        JSON.stringify({
+      return NextResponse.json(
+        {
           error: error instanceof Error ? error.message : 'Failed to read chat data from file',
           details: error instanceof Error ? error.stack : undefined,
-        }),
-        { status: 400, headers },
+        },
+        { status: 400 },
       );
     }
 
@@ -148,9 +117,9 @@ export async function POST(request: NextRequest) {
 
     if (!processedChat || processedChat.trim().length === 0) {
       console.error('No valid chat messages found');
-      return new NextResponse(
-        JSON.stringify({ error: 'No valid chat messages found in the file' }),
-        { status: 400, headers },
+      return NextResponse.json(
+        { error: 'No valid chat messages found in the file' },
+        { status: 400 },
       );
     }
 
@@ -209,18 +178,18 @@ This format ensures the output is organized, actionable, and easy to understand.
 
     // Calculate tokens
     const tokenStart = performance.now();
-    const chatTokens = estimateTokenCount(processedChat);
-    const promptTokens = estimateTokenCount(promptTemplate);
+    const chatTokens = await getTokenCount(processedChat);
+    const promptTokens = await getTokenCount(promptTemplate);
     timings.tokenCount = performance.now() - tokenStart;
     console.log(`Token counting took: ${timings.tokenCount.toFixed(2)}ms`);
     console.log('Token counts:', { chatTokens, promptTokens });
 
     if (promptTokens > 128000) {
-      return new NextResponse(
-        JSON.stringify({
+      return NextResponse.json(
+        {
           error: `Content is too long (${promptTokens} tokens). Please upload a smaller chat file. Maximum allowed is 128,000 tokens.`,
-        }),
-        { status: 400, headers },
+        },
+        { status: 400 },
       );
     }
 
@@ -248,13 +217,10 @@ This format ensures the output is organized, actionable, and easy to understand.
     console.log('Total processing time:', totalTime.toFixed(2), 'ms');
     console.log('Detailed timings:', timings);
 
-    return new NextResponse(
-      JSON.stringify({
-        summary: completion.choices[0].message.content,
-        timings,
-      }),
-      { status: 200, headers },
-    );
+    return NextResponse.json({
+      summary: completion.choices[0].message.content,
+      timings,
+    });
   } catch (error: unknown) {
     const totalTime = performance.now() - startTime;
     console.error('Error processing chat:', error);
@@ -262,13 +228,13 @@ This format ensures the output is organized, actionable, and easy to understand.
     console.error('Failed after:', totalTime.toFixed(2), 'ms');
     console.error('Partial timings:', timings);
 
-    return new NextResponse(
-      JSON.stringify({
+    return NextResponse.json(
+      {
         error: error instanceof Error ? error.message : 'Error processing chat',
         details: error instanceof Error ? error.stack : undefined,
         timings,
-      }),
-      { status: 500, headers },
+      },
+      { status: 500 },
     );
   }
 }

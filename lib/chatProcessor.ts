@@ -20,18 +20,14 @@ export async function processWhatsAppChat(chatContent: string): Promise<string> 
     console.log('Total lines:', lines.length);
     console.log('First few lines:', lines.slice(0, 5));
 
-    // Updated regex to match more WhatsApp formats
+    // Updated regex to match the specific WhatsApp format
     const messageRegex =
-      /^(?:\[?)(\d{1,2}\/\d{1,2}\/\d{2,4}(?:,|\s)\s*\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:AM|PM)?)?)(?:\]?)\s*-?\s*([^:]+?):\s*(.*)/i;
+      /^\[?(\d{2}\/\d{2}\/\d{2},\s*\d{1,2}:\d{2}:\d{2}\s*(?:AM|PM)?)\]?\s*([^:]+?):\s*(.*)/;
 
     const messages: Message[] = [];
     let currentMessage: Message | null = null;
     let linesParsed = 0;
     let linesMatched = 0;
-
-    // Sample some lines for debugging
-    const sampleLines = lines.slice(0, 10).join('\n');
-    console.log('Sample lines for debugging:', sampleLines);
 
     for (const line of lines) {
       linesParsed++;
@@ -43,17 +39,14 @@ export async function processWhatsAppChat(chatContent: string): Promise<string> 
           messages.push(currentMessage);
         }
 
-        // Extract just the date part (before the comma or space)
-        const datePart = match[1].split(/,|\s/)[0];
-
-        // Clean up the sender name
+        // Clean up the sender name by removing special characters and "~"
         const sender = match[2]
-          .replace(/^[~\s]+/, '') // Remove leading "~" and spaces
-          .replace(/[‪\u202A\u202C‬]/g, '') // Remove special characters
+          .replace(/^~\s*/, '') // Remove leading "~"
+          .replace(/‪|\u202A|\u202C|‬/g, '') // Remove special characters
           .trim();
 
         currentMessage = {
-          date: datePart,
+          date: match[1].split(',')[0], // Keep only the date part, not time
           sender: sender,
           content: match[3].trim(),
         };
