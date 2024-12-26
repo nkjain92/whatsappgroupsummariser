@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
-    // Get the file content
+    // Get the file content based on file type
     let fileContent: string;
     try {
       if (file.type === 'application/zip' || file.name.endsWith('.zip')) {
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       } else {
         fileContent = await file.text();
       }
-    } catch (error) {
+    } catch (fileError) {
       return NextResponse.json({ error: 'Failed to read chat data from file' }, { status: 400 });
     }
 
@@ -103,8 +103,11 @@ ${processedChat}`;
       },
       dateRange,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error checking tokens:', error);
-    return NextResponse.json({ error: error.message || 'Error checking file' }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Error checking file' },
+      { status: 500 },
+    );
   }
 }

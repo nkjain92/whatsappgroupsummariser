@@ -225,7 +225,7 @@ export default function Home() {
           className='mb-2'
           dangerouslySetInnerHTML={{
             __html: parts
-              .map((part, j) => {
+              .map(part => {
                 if (part.match(urlRegex)) {
                   return `<a href="${part}" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-700 underline break-all">${part}</a>`;
                 }

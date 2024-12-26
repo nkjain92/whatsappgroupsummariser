@@ -221,17 +221,17 @@ This format ensures the output is organized, actionable, and easy to understand.
       summary: completion.choices[0].message.content,
       timings,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     const totalTime = performance.now() - startTime;
     console.error('Error processing chat:', error);
-    console.error('Error stack:', error.stack);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     console.error('Failed after:', totalTime.toFixed(2), 'ms');
     console.error('Partial timings:', timings);
 
     return NextResponse.json(
       {
-        error: error.message || 'Error processing chat',
-        details: error.stack,
+        error: error instanceof Error ? error.message : 'Error processing chat',
+        details: error instanceof Error ? error.stack : undefined,
         timings,
       },
       { status: 500 },
