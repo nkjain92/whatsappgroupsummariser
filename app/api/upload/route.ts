@@ -2,34 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { processWhatsAppChat } from '@/lib/chatProcessor';
 import JSZip from 'jszip';
-import { encoding_for_model } from 'tiktoken';
+import { estimateTokenCount } from '@/lib/tokenCounter';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-
-// Get accurate token count using tiktoken
-async function getTokenCount(text: string): Promise<number> {
-  try {
-    // Fallback to approximate count if tiktoken fails
-    const approximateCount = Math.ceil(text.length / 4);
-
-    try {
-      // Using cl100k_base encoding for GPT-4 models
-      const enc = encoding_for_model('gpt-4');
-      const tokens = enc.encode(text);
-      enc.free();
-      return tokens.length;
-    } catch (error) {
-      console.warn('Tiktoken failed, using approximate count:', error);
-      return approximateCount;
-    }
-  } catch (error) {
-    console.error('Error counting tokens:', error);
-    // Return approximate count as fallback
-    return Math.ceil(text.length / 4);
-  }
-}
 
 async function extractTextFromZip(file: File): Promise<string> {
   try {
@@ -224,8 +201,8 @@ This format ensures the output is organized, actionable, and easy to understand.
 
     // Calculate tokens
     const tokenStart = performance.now();
-    const chatTokens = await getTokenCount(processedChat);
-    const promptTokens = await getTokenCount(promptTemplate);
+    const chatTokens = estimateTokenCount(processedChat);
+    const promptTokens = estimateTokenCount(promptTemplate);
     timings.tokenCount = performance.now() - tokenStart;
     console.log(`Token counting took: ${timings.tokenCount.toFixed(2)}ms`);
     console.log('Token counts:', { chatTokens, promptTokens });

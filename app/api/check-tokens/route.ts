@@ -1,29 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processWhatsAppChat } from '@/lib/chatProcessor';
 import JSZip from 'jszip';
-import { encoding_for_model } from 'tiktoken';
-
-// Get accurate token count using tiktoken
-async function getTokenCount(text: string): Promise<number> {
-  try {
-    // Fallback to approximate count if tiktoken fails
-    const approximateCount = Math.ceil(text.length / 4);
-
-    try {
-      const enc = encoding_for_model('gpt-4');
-      const tokens = enc.encode(text);
-      enc.free();
-      return tokens.length;
-    } catch (error) {
-      console.warn('Tiktoken failed, using approximate count:', error);
-      return approximateCount;
-    }
-  } catch (error) {
-    console.error('Error counting tokens:', error);
-    // Return approximate count as fallback
-    return Math.ceil(text.length / 4);
-  }
-}
+import { estimateTokenCount } from '@/lib/tokenCounter';
 
 async function extractTextFromZip(file: File): Promise<string> {
   try {
@@ -141,8 +119,8 @@ ${processedChat}`;
 
       // Get token counts
       console.log('Counting tokens...');
-      const chatTokens = await getTokenCount(processedChat);
-      const promptTokens = await getTokenCount(promptTemplate);
+      const chatTokens = estimateTokenCount(processedChat);
+      const promptTokens = estimateTokenCount(promptTemplate);
 
       // Extract date range
       const dateRangeMatch = processedChat.match(/===\s*(\d{2}\/\d{2}\/\d{2})/g);
