@@ -62,17 +62,48 @@ async function extractTextFromZip(file: File): Promise<string> {
   }
 }
 
+export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
+
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}
+
 export async function POST(request: NextRequest) {
   const timings: Record<string, number> = {};
   const startTime = performance.now();
 
   try {
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
+    // Validate request
+    if (!request.body) {
+      return new NextResponse(JSON.stringify({ error: 'No request body' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
+    const formData = await request.formData().catch(() => null);
+    if (!formData) {
+      return new NextResponse(JSON.stringify({ error: 'Failed to parse form data' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const file = formData.get('file') as File;
     if (!file) {
       console.error('No file uploaded');
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+      return new NextResponse(JSON.stringify({ error: 'No file uploaded' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     console.log('File received:', file.name, 'Size:', file.size, 'Type:', file.type);
@@ -99,12 +130,15 @@ export async function POST(request: NextRequest) {
       console.log('File content length:', fileContent.length);
     } catch (error) {
       console.error('Error reading file:', error);
-      return NextResponse.json(
-        {
+      return new NextResponse(
+        JSON.stringify({
           error: error instanceof Error ? error.message : 'Failed to read chat data from file',
           details: error instanceof Error ? error.stack : undefined,
+        }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
         },
-        { status: 400 },
       );
     }
 
@@ -117,9 +151,12 @@ export async function POST(request: NextRequest) {
 
     if (!processedChat || processedChat.trim().length === 0) {
       console.error('No valid chat messages found');
-      return NextResponse.json(
-        { error: 'No valid chat messages found in the file' },
-        { status: 400 },
+      return new NextResponse(
+        JSON.stringify({ error: 'No valid chat messages found in the file' }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        },
       );
     }
 
@@ -185,11 +222,14 @@ This format ensures the output is organized, actionable, and easy to understand.
     console.log('Token counts:', { chatTokens, promptTokens });
 
     if (promptTokens > 128000) {
-      return NextResponse.json(
-        {
+      return new NextResponse(
+        JSON.stringify({
           error: `Content is too long (${promptTokens} tokens). Please upload a smaller chat file. Maximum allowed is 128,000 tokens.`,
+        }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
         },
-        { status: 400 },
       );
     }
 
@@ -217,10 +257,16 @@ This format ensures the output is organized, actionable, and easy to understand.
     console.log('Total processing time:', totalTime.toFixed(2), 'ms');
     console.log('Detailed timings:', timings);
 
-    return NextResponse.json({
-      summary: completion.choices[0].message.content,
-      timings,
-    });
+    return new NextResponse(
+      JSON.stringify({
+        summary: completion.choices[0].message.content,
+        timings,
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
   } catch (error: unknown) {
     const totalTime = performance.now() - startTime;
     console.error('Error processing chat:', error);
@@ -228,13 +274,16 @@ This format ensures the output is organized, actionable, and easy to understand.
     console.error('Failed after:', totalTime.toFixed(2), 'ms');
     console.error('Partial timings:', timings);
 
-    return NextResponse.json(
-      {
+    return new NextResponse(
+      JSON.stringify({
         error: error instanceof Error ? error.message : 'Error processing chat',
         details: error instanceof Error ? error.stack : undefined,
         timings,
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
       },
-      { status: 500 },
     );
   }
 }

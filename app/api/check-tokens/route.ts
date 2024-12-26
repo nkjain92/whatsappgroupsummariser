@@ -51,14 +51,40 @@ async function extractTextFromZip(file: File): Promise<string> {
   }
 }
 
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
+    // Validate request
+    if (!request.body) {
+      return NextResponse.json({ error: 'No request body' }, { status: 400 });
+    }
 
+    const formData = await request.formData().catch(() => null);
+    if (!formData) {
+      return NextResponse.json({ error: 'Failed to parse form data' }, { status: 400 });
+    }
+
+    const file = formData.get('file') as File;
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
+
+    // Log file details
+    console.log('Received file:', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+    });
 
     // Get the file content based on file type
     let fileContent: string;
@@ -117,28 +143,58 @@ ${processedChat}`;
           ? `from ${dates[0]} to ${dates[dates.length - 1]}`
           : 'for the last 7 days';
 
-      return NextResponse.json({
-        tokens: {
-          chatTokens,
-          promptTokens,
+      return new NextResponse(
+        JSON.stringify({
+          tokens: {
+            chatTokens,
+            promptTokens,
+          },
+          dateRange,
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
         },
-        dateRange,
-      });
+      );
     } catch (error) {
       console.error('Error processing chat:', error);
-      return NextResponse.json(
-        {
+      return new NextResponse(
+        JSON.stringify({
           error: error instanceof Error ? error.message : 'Error processing chat data',
           details: error instanceof Error ? error.stack : undefined,
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          },
         },
-        { status: 500 },
       );
     }
   } catch (error: unknown) {
     console.error('Error checking tokens:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error checking file' },
-      { status: 500 },
+    return new NextResponse(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : 'Error checking file',
+        details: error instanceof Error ? error.stack : undefined,
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
     );
   }
 }
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
