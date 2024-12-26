@@ -119,21 +119,41 @@ export default function Home() {
     formData.append('file', file);
 
     try {
+      console.log('Checking file tokens for:', file.name);
       const response = await fetch('/api/check-tokens', {
         method: 'POST',
         body: formData,
       });
 
-      const data = await response.json();
+      console.log('Response status:', response.status);
+      const text = await response.text(); // Get the raw response text first
+      console.log('Response text:', text);
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.error('Failed to parse JSON response:', parseError);
+        throw new Error('Invalid response from server');
+      }
+
       if (!response.ok) {
-        throw new Error(data.error);
+        throw new Error(data.error || 'Failed to process file');
+      }
+
+      if (!data.tokens) {
+        console.error('No token information in response:', data);
+        throw new Error('Invalid response format');
       }
 
       setTokenInfo(data.tokens);
       setFileInfo({ name: file.name, dateRange: data.dateRange });
+      setError(''); // Clear any previous errors
     } catch (err) {
       console.error('Error checking tokens:', err);
       setError(err instanceof Error ? err.message : 'Error checking file tokens');
+      setTokenInfo(null);
+      setFileInfo(null);
     }
   };
 
@@ -149,17 +169,29 @@ export default function Home() {
       formData.append('file', file);
 
       setProcessingStage('Sending to AI model...');
+      console.log('Uploading file:', file.name);
       const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
       });
 
-      setProcessingStage('Generating summary...');
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error);
+      console.log('Upload response status:', response.status);
+      const text = await response.text();
+      console.log('Upload response text:', text);
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.error('Failed to parse upload response:', parseError);
+        throw new Error('Invalid response from server');
       }
 
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to process chat');
+      }
+
+      setProcessingStage('Generating summary...');
       if (data.timings) {
         setTimings(data.timings);
       }
